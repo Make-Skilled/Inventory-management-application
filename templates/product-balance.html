@@ -1,75 +1,47 @@
 {% extends 'base.html' %}
 
 {% block title %}
-<title>Inventory Managmnet App</title>
+<title>Product Balance Report - Inventory Management</title>
 {% endblock %}
 
-
 {% block content %}
-<main>
-    <div class="container-fluid">
-        <h1 class="mt-4">Dashboard</h1>
-        <ol class="breadcrumb mb-4">
-            <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
-            <li class="breadcrumb-item active">Product Balance</li>
-        </ol>
-        <div class="card mb-4">
-            <div class="card-header">Product Balance</div>
-            <div class="card-body">
-                <div class="card mb-4">
-                <div class="card-header">
-                    <i class="fas fa-table mr-1"></i>
-                    Product Balance Report
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                                    
-                        {% if movements|length < 1 %}
-                        <h4>There are no Movements, add one above</h4>
-                        {% else %}
-                        <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                            <thead>
-                                <tr>
-                                    <th>Product Name</th>
-                                    <th>Warehouse</th>
-                                    <th>Quantity</th>
-                                </tr>
-                            </thead>
-                            <tfoot>
-                                <tr>
-                                    <th>Product Name</th>
-                                    <th>Warehouse</th>
-                                    <th>Quantity</th>
-                                </tr>
-                            </tfoot>
-                            <tbody>
-                                
-                                {% for pkey, values in movements.items() %}
-                                    {% set count = values|length() %}
-                                    <tr>
-                                        <td>{{pkey}}</td>
-                                        {% for key, value in values.items() %}
-                                            <td>{{key}}</td>
-                                            <td>{{value.qty}}</td>
-                                            {% if values|length() > 1 %}
-                                                {% if values|last != key %}
-                                                    </tr>
-                                                    <tr>
-                                                        <td>{{pkey}}</td>
-                                                {% endif %}
-                                            {% endif %}
-                                        {% endfor %}
-                                        </tr>
-                                    {% endfor %}
-                                    
-                            </tbody>
-                        </table>
-                        {% endif %}
-                </div>
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">Product Balance Report</h1>
+
+    <div class="grid gap-6 mb-8">
+        {% for product_id, locations in movements.items() %}
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <div class="px-6 py-4 bg-indigo-600">
+                <h2 class="text-xl font-semibold text-white">Product: {{ product_id }}</h2>
             </div>
+            <div class="p-6">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for location, data in locations.items() %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ location }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-sm leading-5 font-semibold rounded-full 
+                                                {% if data.qty > 0 %}bg-green-100 text-green-800
+                                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                        {{ data.qty }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
+        {% endfor %}
     </div>
-</main>
+</div>
 {% endblock %}
