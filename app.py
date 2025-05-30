@@ -33,10 +33,13 @@ def load_user(id):
     return User.query.get(int(id))
 
 class Product(db.Model):
-
     __tablename__ = 'products'
     product_id      = db.Column(db.String(200), primary_key=True)
     date_created    = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # Add relationship to user
+    user = db.relationship('User', backref=db.backref('products', lazy=True))
 
     def __repr__(self):
         return '<Product %r>' % self.product_id
@@ -45,12 +48,15 @@ class Location(db.Model):
     __tablename__   = 'locations'
     location_id     = db.Column(db.String(200), primary_key=True)
     date_created    = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # Add relationship to user
+    user = db.relationship('User', backref=db.backref('locations', lazy=True))
     
     def __repr__(self):
         return '<Location %r>' % self.location_id
 
 class ProductMovement(db.Model):
-
     __tablename__   = 'productmovements'
     movement_id     = db.Column(db.Integer, primary_key=True)
     product_id      = db.Column(db.Integer, db.ForeignKey('products.product_id'))
@@ -58,6 +64,7 @@ class ProductMovement(db.Model):
     from_location   = db.Column(db.Integer, db.ForeignKey('locations.location_id'))
     to_location     = db.Column(db.Integer, db.ForeignKey('locations.location_id'))
     movement_time   = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     product         = db.relationship('Product', foreign_keys=product_id)
     fromLoc         = db.relationship('Location', foreign_keys=from_location)
@@ -120,7 +127,10 @@ def index():
         
     if (request.method == "POST") and ('product_name' in request.form):
         product_name    = request.form["product_name"]
-        new_product     = Product(product_id=product_name)
+        new_product     = Product(
+            product_id=product_name,
+            user_id=current_user.id  # Add user_id
+        )
 
         try:
             db.session.add(new_product)
@@ -132,7 +142,10 @@ def index():
     
     if (request.method == "POST") and ('location_name' in request.form):
         location_name    = request.form["location_name"]
-        new_location     = Location(location_id=location_name)
+        new_location     = Location(
+            location_id=location_name,
+            user_id=current_user.id  # Add user_id
+        )
 
         try:
             db.session.add(new_location)
@@ -142,16 +155,20 @@ def index():
         except:
             return "There Was an issue while add a new Location"
     else:
-        products    = Product.query.order_by(Product.date_created).all()
-        locations   = Location.query.order_by(Location.date_created).all()
-        return render_template("index.html", products = products, locations = locations)
+        # Filter by current user
+        products = Product.query.filter_by(user_id=current_user.id).order_by(Product.date_created).all()
+        locations = Location.query.filter_by(user_id=current_user.id).order_by(Location.date_created).all()
+        return render_template("index.html", products=products, locations=locations)
 
 @app.route('/locations/', methods=["POST", "GET"])
 @login_required
 def viewLocation():
     if (request.method == "POST") and ('location_name' in request.form):
         location_name = request.form["location_name"]
-        new_location = Location(location_id=location_name)
+        new_location = Location(
+            location_id=location_name,
+            user_id=current_user.id  # Add user_id to new location
+        )
 
         try:
             db.session.add(new_location)
@@ -159,10 +176,11 @@ def viewLocation():
             return redirect("/locations/")
 
         except:
-            locations = Location.query.order_by(Location.date_created).all()
-            return "There Was an issue while add a new Location"
+            locations = Location.query.filter_by(user_id=current_user.id).order_by(Location.date_created).all()
+            return "There Was an issue while adding a new Location"
     else:
-        locations = Location.query.order_by(Location.date_created).all()
+        # Filter locations by current user
+        locations = Location.query.filter_by(user_id=current_user.id).order_by(Location.date_created).all()
         return render_template("locations.html", locations=locations)
 
 @app.route('/products/', methods=["POST", "GET"])
@@ -170,7 +188,10 @@ def viewLocation():
 def viewProduct():
     if (request.method == "POST") and ('product_name' in request.form):
         product_name = request.form["product_name"]
-        new_product = Product(product_id=product_name)
+        new_product = Product(
+            product_id=product_name,
+            user_id=current_user.id  # Add user_id to new product
+        )
 
         try:
             db.session.add(new_product)
@@ -178,16 +199,17 @@ def viewProduct():
             return redirect("/products/")
 
         except:
-            products = Product.query.order_by(Product.date_created).all()
-            return "There Was an issue while add a new Product"
+            products = Product.query.filter_by(user_id=current_user.id).order_by(Product.date_created).all()
+            return "There Was an issue while adding a new Product"
     else:
-        products = Product.query.order_by(Product.date_created).all()
+        # Filter products by current user
+        products = Product.query.filter_by(user_id=current_user.id).order_by(Product.date_created).all()
         return render_template("products.html", products=products)
 
 @app.route("/update-product/<name>", methods=["POST", "GET"])
 @login_required
 def updateProduct(name):
-    product = Product.query.get_or_404(name)
+    product = Product.query.filter_by(user_id=current_user.id, product_id=name).first_or_404()
     old_porduct = product.product_id
 
     if request.method == "POST":
@@ -218,7 +240,7 @@ def deleteProduct(name):
 @app.route("/update-location/<name>", methods=["POST", "GET"])
 @login_required
 def updateLocation(name):
-    location = Location.query.get_or_404(name)
+    location = Location.query.filter_by(user_id=current_user.id, location_id=name).first_or_404()
     old_location = location.location_id
 
     if request.method == "POST":
@@ -256,7 +278,12 @@ def viewMovements():
         fromLocation    = request.form["fromLocation"]
         toLocation      = request.form["toLocation"]
         new_movement = ProductMovement(
-            product_id=product_id, qty=qty, from_location=fromLocation, to_location=toLocation)
+            product_id=product_id, 
+            qty=qty, 
+            from_location=fromLocation, 
+            to_location=toLocation,
+            user_id=current_user.id  # Add user_id to new movement
+        )
 
         try:
             db.session.add(new_movement)
@@ -266,9 +293,11 @@ def viewMovements():
         except:
             return "There Was an issue while add a new Movement"
     else:
-        products    = Product.query.order_by(Product.date_created).all()
-        locations   = Location.query.order_by(Location.date_created).all()
+        # Filter by current user
+        products = Product.query.filter_by(user_id=current_user.id).order_by(Product.date_created).all()
+        locations = Location.query.filter_by(user_id=current_user.id).order_by(Location.date_created).all()
         movs = ProductMovement.query\
+        .filter_by(user_id=current_user.id)\
         .join(Product, ProductMovement.product_id == Product.product_id)\
         .add_columns(
             ProductMovement.movement_id,
@@ -286,10 +315,9 @@ def viewMovements():
 @app.route("/update-movement/<int:id>", methods=["POST", "GET"])
 @login_required
 def updateMovement(id):
-
-    movement    = ProductMovement.query.get_or_404(id)
-    products    = Product.query.order_by(Product.date_created).all()
-    locations   = Location.query.order_by(Location.date_created).all()
+    movement = ProductMovement.query.filter_by(user_id=current_user.id, movement_id=id).first_or_404()
+    products = Product.query.filter_by(user_id=current_user.id).order_by(Product.date_created).all()
+    locations = Location.query.filter_by(user_id=current_user.id).order_by(Location.date_created).all()
 
     if request.method == "POST":
         movement.product_id  = request.form["productId"]
@@ -322,6 +350,7 @@ def deleteMovement(id):
 @login_required
 def productBalanceReport():
     movs = ProductMovement.query.\
+        filter_by(user_id=current_user.id).\
         join(Product, ProductMovement.product_id == Product.product_id).\
         add_columns(
             Product.product_id, 
@@ -357,23 +386,34 @@ def productBalanceReport():
     return render_template("product-balance.html", movements=balancedDict)
 
 @app.route("/movements/get-from-locations/", methods=["POST"])
+@login_required
 def getLocations():
     product = request.form["productId"]
-    location = request.form["location"]
-    locationDict = defaultdict(lambda: defaultdict(dict))
-    locations = ProductMovement.query.\
-        filter( ProductMovement.product_id == product).\
-        filter(ProductMovement.to_location != '').\
-        add_columns(ProductMovement.from_location, ProductMovement.to_location, ProductMovement.qty).\
+    locationDict = defaultdict(lambda: {"qty": 0})
+    
+    # Get all movements for this product and user
+    movements = ProductMovement.query.\
+        filter_by(user_id=current_user.id).\
+        filter(ProductMovement.product_id == product).\
         all()
 
-    for key, location in enumerate(locations):
-        if(locationDict[location.to_location] and locationDict[location.to_location]["qty"]):
-            locationDict[location.to_location]["qty"] += location.qty
-        else:
-            locationDict[location.to_location]["qty"] = location.qty
+    # Calculate net quantity at each location
+    for movement in movements:
+        if movement.to_location:
+            locationDict[movement.to_location]["qty"] += movement.qty
+        if movement.from_location:
+            locationDict[movement.from_location]["qty"] -= movement.qty
 
-    return locationDict
+    # Convert to list and filter out empty locations
+    result = []
+    for loc_id, data in locationDict.items():
+        if data["qty"] > 0:  # Only include locations with positive quantity
+            result.append({
+                "location_id": loc_id,
+                "quantity": data["qty"]
+            })
+
+    return jsonify({"locations": result})
 
 
 @app.route("/dub-locations/", methods=["POST", "GET"])
